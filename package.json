@@ -1,0 +1,19 @@
+{
+  "name": "google-translate-api-languages-script",
+  "version": "1.0.0",
+  "description": "A simple script for updating languages in https://github.com/vitalets/google-translate-api",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AidanWelch/google-translate-api-languages-script.git"
+  },
+  "author": "Aidan Welch",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/AidanWelch/google-translate-api-languages-script/issues"
+  },
+  "homepage": "https://github.com/AidanWelch/google-translate-api-languages-script#readme"
+}
