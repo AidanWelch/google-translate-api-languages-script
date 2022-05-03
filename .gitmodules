@@ -1,0 +1,3 @@
+[submodule "google-translate-api"]
+	path = google-translate-api
+	url = https://github.com/vitalets/google-translate-api.git
