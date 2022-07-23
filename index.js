@@ -2,9 +2,11 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-const file_path = path.resolve(__dirname, "google-translate-api", "languages.js");
+const js_file_path = path.resolve(__dirname, "google-translate-api", "languages.js");
+const ts_file_path = path.resolve(__dirname, "google-translate-api", "index.d.ts");
 
-const req = https.request("https://cloud.google.com/translate/docs/languages", res => {
+
+const req = https.request("https://translate.google.com/", res => {
 
 	let data = "";
 
@@ -13,63 +15,43 @@ const req = https.request("https://cloud.google.com/translate/docs/languages", r
 	});
 
 	res.on("end", () => {
-		const languagesHTML = data.slice(data.indexOf("<tbody>") + 7, data.indexOf("</tbody>"));
-		const parsedLanguages = parseLanguages(languagesHTML).sort( (a, b) => a[1].localeCompare(b[1]));
-		for (lang of parsedLanguages) {
-			console.info(lang);
-		}
-		addLanguages(parsedLanguages);
+		let languagesString = data.slice(data.search(/AF_initDataCallback\({key: 'ds:3', hash: '.', data:/) + 50);
+		languagesString = languagesString.slice(0, languagesString.indexOf("]]],") + 3);
+		const parsedLanguages = addExceptions(JSON.parse(languagesString)[0]);
+		addLanguagesJS(JSON.parse(JSON.stringify(parsedLanguages)));
+		addLanguagesTS(parsedLanguages);
 	});
 });
 
-req.end();
-
-function parseLanguages (languagesHTML) {
-	let name = languagesHTML.slice(languagesHTML.indexOf("<td>") + 4, languagesHTML.indexOf("</td>"));
-	let iso = languagesHTML.slice(languagesHTML.indexOf('<td><code translate="no" dir="ltr">') + 35, languagesHTML.indexOf("</code>"));
-	
-	//Inconsistencies fixed:
-	switch (iso) {
-		case "he": 
-			iso = "iw";
-			break;
-		case "jv":
-			iso = "jw";
-			break;
-		case "pt": 
-			name = "Portuguese";
-			break;
-		case "tl":
-			name = "Filipino";
-			break;
-		case "ny":
-			name = "Chichewa";
-			break;
-		case "ku":
-			name = "Kurdish (Kurmanji)";
-			break;
-		case "si":
-			name = "Sinhala";
-			break;
-	}
-	
-	languagesHTML = languagesHTML.slice(languagesHTML.indexOf("</tr>") + 5);
-	const parsedLanguages = [ [iso, name] ];
-	if (languagesHTML.indexOf("</tr>") !== -1) {
-		parsedLanguages.push(...parseLanguages(languagesHTML));
-	} else {
-		parsedLanguages.push(["la", "Latin"]);
-	}
-	return parsedLanguages;
+function addExceptions(languages) {
+	languages.splice(0, 0, ["auto", "Automatic"]);
+	const cnIndex = languages.findIndex(lang => lang[0] === "zh-CN");
+	languages[cnIndex][1] = "Chinese (Simplified)";
+	languages.splice(cnIndex + 1, 0, ["zh-TW", "Chinese (Traditional)"]);
+	const iwIndex = languages.findIndex(lang => lang[0] === "iw");
+	languages.splice(iwIndex + 1, 0, ["he", "Hebrew"]);
+	return languages;
 }
 
-function addLanguages (languages) {
-	const file = fs.readFileSync(file_path);
-	const start = file.slice(0, file.indexOf("'auto': 'Automatic',") + 20);
+req.end();
+
+function addLanguagesJS (languages) {
+	const file = fs.readFileSync(js_file_path);
+	const start = file.slice(0, file.indexOf("'auto': 'Automatic',") - 5);
 	const end = file.slice(file.indexOf("\n}"));
 	languages.forEach( (lang, i) => {
-		languages[i] = `\n    '${lang[0]}': '${lang[1]}'`
+		languages[i] = `\n    '${lang[0]}': '${lang[1]}'`;
 	});
-	languages = languages.join(",");
-	fs.writeFileSync(file_path, start + languages + end);
+	fs.writeFileSync(js_file_path, start + languages.join(",") + end);
+}
+
+function addLanguagesTS (languages) {
+	const file = fs.readFileSync(ts_file_path);
+	const start = file.slice(0, file.indexOf("export enum languages {") + 23);
+	const middle = file.slice(file.indexOf("export enum languages {") + 23)
+	const end = middle.slice(middle.indexOf("\n  }"));
+	languages.forEach( (lang, i) => {
+		languages[i] = `\n    "${lang[0]}" = "${lang[1]}"`;
+	});
+	fs.writeFileSync(ts_file_path, start + languages.join(",") + end);
 }
